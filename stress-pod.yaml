@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  generateName: memory-stress-
+  labels:
+    purpose: stress-test
+spec:
+  containers:
+  - name: stress-chaos-test-container
+    image: uditgaurav/stress-chaos-test:0.1.0
+    env:
+     # Replace with the target pod name
+    - name: POD_NAME
+      value: "nginx-77b4fdf86c-g56xb"  
+    # Replace with the target namespace
+    - name: NAMESPACE
+      value: "udit"  
+    # Replace with desired memory in MB
+    - name: MEMORY_MB
+      value: "500"
+    # Replace with desired duration in seconds
+    - name: DURATION
+      value: "60"                
+  restartPolicy: Never
