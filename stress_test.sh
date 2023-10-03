@@ -2,7 +2,7 @@
 
 cleanup() {
     echo "Received abort signal. Cleaning up..."
-    kubectl exec -n $NAMESPACE $POD_NAME -- rm -f /tmp/stressfile
+    kubectl exec -n $NAMESPACE $POD_NAME -- pkill -f stress-ng
     exit 1
 }
 
@@ -20,20 +20,29 @@ NAMESPACE=$2
 MEMORY_MB=$3
 DURATION=$4
 
-# Exec into the pod and run the stress commands
+# Get the PID of the container's main process. Assuming it's the first process in the container.
+PID=$(kubectl exec -n $NAMESPACE $POD_NAME -- ps -e | head -n 2 | tail -n 1 | awk '{print $1}')
 
-# Stress Memory using dd
-echo "Stressing memory for ${DURATION} seconds..."
-kubectl exec -n $NAMESPACE $POD_NAME -- bash -c "dd if=/dev/zero of=/tmp/stressfile bs=1M count=$MEMORY_MB & sleep $DURATION && rm -f /tmp/stressfile" &
+# Pause the process inside the container using nsutil
+nsutil -t $PID -m -- pause
 
-# Store the background process PID
-BACKGROUND_PID=$!
+# Start the stress process in the background with stress-ng
+stress-ng --vm 1 --vm-bytes ${MEMORY_MB}M --timeout ${DURATION}s --pause &
 
-# If you wish to add CPU stress, consider using a tool like 'stress' or 'stress-ng'
-# Example:
-# kubectl exec -n $NAMESPACE $POD_NAME -- bash -c "stress --cpu 1 --timeout ${DURATION}s"
+# Get the PID of the stress-ng process
+STRESS_PID=$!
 
-# Wait for the commands to complete
-wait $BACKGROUND_PID
+# Add the stress-ng process to the cgroup of the target container
+# Assuming you are using cgroup v1 and the cgroup paths have to be correctly identified
+echo $STRESS_PID >> /sys/fs/cgroup/memory/kubernetes/$NAMESPACE/$POD_NAME/tasks
+
+# Wait for the process to start before sending the resume signal
+sleep 0.7
+
+# Resume the paused stress-ng process
+kill -CONT $STRESS_PID
+
+# Wait for the stress-ng command to complete
+wait $STRESS_PID
 
 echo "Stress test completed."
