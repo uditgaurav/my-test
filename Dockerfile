@@ -1,11 +1,11 @@
 # Use an alpine base image for minimal size
 FROM alpine:latest
 
-# Install kubectl and stress-ng
-RUN apk add --no-cache curl stress-ng && \
+# Install kubectl, stress-ng, and nsenter
+RUN apk add --no-cache curl stress-ng util-linux && \
     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
     chmod +x kubectl && \
-    mv kubectl /usr/local/bin/ 
+    mv kubectl /usr/local/bin/
 
 #Installing nsutil cli binaries
 RUN curl -L https://github.com/litmuschaos/test-tools/releases/download/3.0.0/nsutil-linux-amd64 --output /usr/local/bin/nsutil && chmod +x /usr/local/bin/nsutil
