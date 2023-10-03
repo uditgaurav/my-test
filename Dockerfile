@@ -9,7 +9,7 @@ RUN apk add --no-cache curl stress-ng && \
     apk del curl
 
 # Copy the script into the container
-COPY stress_test.sh .
+COPY stress_test.sh /
 RUN chmod +x stress_test.sh
 
 # Set environment variables for the arguments; these can be overridden at runtime
@@ -19,4 +19,4 @@ ENV MEMORY_MB=100
 ENV DURATION=60
 
 # The script will be our entry point
-ENTRYPOINT ["./usr/local/bin/stress_test.sh", "$POD_NAME", "$NAMESPACE", "$MEMORY_MB", "$DURATION"]
+ENTRYPOINT ["sh", "stress_test.sh", "$POD_NAME", "$NAMESPACE", "$MEMORY_MB", "$DURATION"]
