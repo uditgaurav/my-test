@@ -19,4 +19,4 @@ ENV MEMORY_MB=100
 ENV DURATION=60
 
 # The script will be our entry point
-ENTRYPOINT ["sh stress_test.sh", "$POD_NAME", "$NAMESPACE", "$MEMORY_MB", "$DURATION"]
+ENTRYPOINT ["./stress_test.sh", "$POD_NAME", "$NAMESPACE", "$MEMORY_MB", "$DURATION"]
