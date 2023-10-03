@@ -8,6 +8,12 @@ RUN apk add --no-cache curl stress-ng && \
     mv kubectl /usr/local/bin/ && \
     apk del curl
 
+#Installing nsutil cli binaries
+RUN curl -L https://github.com/litmuschaos/test-tools/releases/download/3.0.0/nsutil-linux-amd64 --output /usr/local/bin/nsutil && chmod +x /usr/local/bin/nsutil
+
+#Installing pause cli binaries
+RUN curl -L https://github.com/litmuschaos/test-tools/releases/download/3.0.0/pause-linux-amd64 --output /usr/local/bin/pause && chmod +x /usr/local/bin/pause
+
 # Copy the script into the container
 COPY stress_test.sh /
 RUN chmod +x stress_test.sh
