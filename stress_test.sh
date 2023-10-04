@@ -20,20 +20,29 @@ NAMESPACE=$2
 MEMORY_MB=$3
 DURATION=$4
 
-# Get the PID of the container's main process. 
-# This approach assumes the main process is the one with PID 1 from the container's perspective.
-PID=$(kubectl exec -n $NAMESPACE $POD_NAME -- ps -o pid= -p 1)
+# Start the stress process in the background with stress-ng
+stress-ng --vm 1 --vm-bytes ${MEMORY_MB}M --timeout ${DURATION}s &
 
-# If the PID retrieval fails, exit
-if [ -z "$PID" ]; then
-    echo "Failed to get the PID of the container's main process."
+# Get the PID of the stress-ng process
+STRESS_PID=$!
+
+# Let's wait a little to make sure the process started
+sleep 0.5
+
+# Find the cgroup of the target container
+# This step is crucial, and you'll need to adjust the path if your Kubernetes setup has a different cgroup layout.
+CGROUP_PATH=$(kubectl describe pod $POD_NAME -n $NAMESPACE | grep -E "Memory cgroup" | awk '{print $NF}')
+
+# If the cgroup path retrieval fails, exit
+if [ -z "$CGROUP_PATH" ]; then
+    echo "Failed to get the cgroup path of the container."
     exit 1
 fi
 
-# Using nsenter to run stress-ng within the container's memory namespace but outside of the container
-nsenter -t $PID -m stress-ng --vm 1 --vm-bytes ${MEMORY_MB}M --timeout ${DURATION}s &
+# Add the stress-ng process to the cgroup of the target container
+echo $STRESS_PID >> /sys/fs/cgroup/memory${CGROUP_PATH}/tasks
 
 # Wait for the stress-ng command to complete
-wait $!
+wait $STRESS_PID
 
 echo "Stress test completed."
