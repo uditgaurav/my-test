@@ -23,8 +23,8 @@ DURATION=$4
 # Get the PID of the container's main process. Assuming it's the first process in the container.
 PID=$(kubectl exec -n $NAMESPACE $POD_NAME -- ps -e | head -n 2 | tail -n 1 | awk '{print $1}')
 
-# Pause the process inside the container using nsutil
-nsenter -t $PID -m -- pause
+# # Pause the process inside the container using nsutil
+# nsenter -t $PID -m -- pause
 
 # Start the stress process in the background with stress-ng
 stress-ng --vm 1 --vm-bytes ${MEMORY_MB}M --timeout ${DURATION}s --pause &
