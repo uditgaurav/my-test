@@ -2,7 +2,7 @@
 
 cleanup() {
     echo "Received abort signal. Cleaning up..."
-    kubectl exec -n $NAMESPACE $POD_NAME -- pkill -f stress-ng
+    pkill -f stress-ng
     exit 1
 }
 
@@ -20,29 +20,20 @@ NAMESPACE=$2
 MEMORY_MB=$3
 DURATION=$4
 
-# Get the PID of the container's main process. Assuming it's the first process in the container.
-PID=$(kubectl exec -n $NAMESPACE $POD_NAME -- ps -e | head -n 2 | tail -n 1 | awk '{print $1}')
+# Get the PID of the container's main process. 
+# This approach assumes the main process is the one with PID 1 from the container's perspective.
+PID=$(kubectl exec -n $NAMESPACE $POD_NAME -- ps -o pid= -p 1)
 
-# # Pause the process inside the container using nsutil
-# nsenter -t $PID -m -- pause
+# If the PID retrieval fails, exit
+if [ -z "$PID" ]; then
+    echo "Failed to get the PID of the container's main process."
+    exit 1
+fi
 
-# Start the stress process in the background with stress-ng
-stress-ng --vm 1 --vm-bytes ${MEMORY_MB}M --timeout ${DURATION}s --pause &
-
-# Get the PID of the stress-ng process
-STRESS_PID=$!
-
-# Add the stress-ng process to the cgroup of the target container
-# Assuming you are using cgroup v1 and the cgroup paths have to be correctly identified
-echo $STRESS_PID >> /sys/fs/cgroup/memory/kubernetes/$NAMESPACE/$POD_NAME/tasks
-
-# Wait for the process to start before sending the resume signal
-sleep 0.7
-
-# Resume the paused stress-ng process
-kill -CONT $STRESS_PID
+# Using nsenter to run stress-ng within the container's memory namespace but outside of the container
+nsenter -t $PID -m stress-ng --vm 1 --vm-bytes ${MEMORY_MB}M --timeout ${DURATION}s &
 
 # Wait for the stress-ng command to complete
-wait $STRESS_PID
+wait $!
 
 echo "Stress test completed."
